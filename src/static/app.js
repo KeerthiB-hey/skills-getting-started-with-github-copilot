@@ -20,12 +20,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        const participantItems = details.participants.length
+          ? `<ul class="participants-list">${details.participants
+              .map(
+                p =>
+                  `<li>${p} <span class="remove-participant" data-activity="${name}" data-email="${p}">✖</span></li>`
+              )
+              .join('')}</ul>`
+          : '<p class="no-participants">No participants yet</p>';
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <strong>Participants:</strong>
+            ${participantItems}
+          </div>
         `;
+
+        // attach delete handlers
+        activityCard.querySelectorAll('.remove-participant').forEach(elem => {
+          elem.addEventListener('click', async () => {
+            const activityName = encodeURIComponent(elem.dataset.activity);
+            const email = encodeURIComponent(elem.dataset.email);
+            try {
+              const res = await fetch(
+                `/activities/${activityName}/participants?email=${email}`,
+                { method: 'DELETE' }
+              );
+              if (res.ok) {
+                fetchActivities();
+              } else {
+                const err = await res.json();
+                alert(err.detail || 'Failed to remove participant');
+              }
+            } catch (e) {
+              console.error('Error deleting participant:', e);
+            }
+          });
+        });
 
         activitiesList.appendChild(activityCard);
 
@@ -62,6 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // reload activities to show updated participant list
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
